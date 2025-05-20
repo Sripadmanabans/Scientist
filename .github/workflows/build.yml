@@ -1,0 +1,40 @@
+name: build
+
+on:
+  pull_request: { }
+  workflow_dispatch: { }
+  push:
+    branches:
+      - 'trunk'
+    tags-ignore:
+      - '**'
+
+permissions:
+  pull-requests: write
+
+env:
+  GRADLE_OPTS: "-Dkotlin.incremental=false -Dorg.gradle.logging.stacktrace=full"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.java-version
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          add-job-summary-as-pr-comment: always
+          build-scan-publish: true
+          build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
+          build-scan-terms-of-use-agree: 'yes'
+
+      - name: Execute Gradle build
+        run: ./gradlew build
