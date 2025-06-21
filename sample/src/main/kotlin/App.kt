@@ -16,15 +16,24 @@
 
 package com.adjectivemonk2.app
 
-import com.adjectivemonk2.scientist.Printer
+import com.adjectivemonk2.scientist.science
 
 fun main() {
-  val name = "Kotlin"
-  val message = "Hello, $name!"
-  val printer = Printer(message)
-  println(printer.generateMessage())
-
   for (i in 1..5) {
     println("i = $i")
   }
+
+  val value = science {
+    enabled = true
+    control {
+      println("control")
+      "Control"
+    }
+    test {
+      println("test")
+      "Test"
+    }
+  }
+
+  println("value = $value")
 }

@@ -14,21 +14,15 @@
  * limitations under the License.
  */
 
-plugins {
-  alias(libs.plugins.kotlin.multiplatform)
-}
+import com.adjectivemonk2.scientist.BehaviorNotUniqueException
+import com.varabyte.truthish.assertThat
+import kotlin.test.Test
 
-kotlin {
-  explicitApi()
+class BehaviorNotUniqueExceptionTest {
 
-  jvm()
-
-  sourceSets {
-    commonTest {
-      dependencies {
-        implementation(libs.kotlin.test)
-        implementation(libs.truthish)
-      }
-    }
+  @Test
+  fun exceptionTestMessage() {
+    val exception = BehaviorNotUniqueException("foo")
+    assertThat(exception.message).isEqualTo("foo is not unique")
   }
 }

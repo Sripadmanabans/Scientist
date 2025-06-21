@@ -14,21 +14,20 @@
  * limitations under the License.
  */
 
-plugins {
-  alias(libs.plugins.kotlin.multiplatform)
-}
+package com.adjectivemonk2.scientist
 
-kotlin {
-  explicitApi()
+import kotlin.time.Duration
+import kotlin.time.measureTimedValue
 
-  jvm()
-
-  sourceSets {
-    commonTest {
-      dependencies {
-        implementation(libs.kotlin.test)
-        implementation(libs.truthish)
-      }
+public class Observation<T>(
+  public val name: String,
+  public val answer: Answer<T>,
+  public val duration: Duration,
+) {
+  internal companion object {
+    fun <T> create(name: String, block: () -> T): Observation<T> {
+      val (answer, duration) = measureTimedValue { runCatching { block() } }
+      return Observation(name = name, answer = answer, duration = duration)
     }
   }
 }
