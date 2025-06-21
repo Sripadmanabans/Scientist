@@ -16,11 +16,4 @@
 
 package com.adjectivemonk2.scientist
 
-import kotlinx.serialization.Serializable
-
-@Serializable
-class Printer(val message: String) {
-  fun generateMessage(): String {
-    return "Generated Message: $message"
-  }
-}
+public class BehaviorNotUniqueException(name: String) : RuntimeException("$name is not unique")

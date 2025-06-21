@@ -16,22 +16,7 @@
 
 package com.adjectivemonk2.scientist
 
-import com.varabyte.truthish.assertThat
-import kotlin.test.Test
-
-internal class PrinterTest {
-  @Test
-  fun testMessage() {
-    val message = "message"
-    val testPrinter = Printer(message)
-    assertThat(testPrinter.message).isEqualTo(message)
-  }
-
-  @Test
-  fun testGenerateMessage() {
-    val message = "message"
-    val testPrinter = Printer(message)
-    val expectedMessage = "Generated Message: message"
-    assertThat(testPrinter.generateMessage()).isEqualTo(expectedMessage)
-  }
-}
+public class Result<T>(
+  public val control: Observation<T>,
+  public val candidates: List<Observation<T>>,
+)
