@@ -16,6 +16,7 @@
 
 import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   alias(libs.plugins.kotlin.jvm) apply false
@@ -46,9 +47,8 @@ subprojects {
   }
 
   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile> {
-    @Suppress("DEPRECATION")
-    kotlinOptions {
-      jvmTarget = "11"
+    compilerOptions {
+      jvmTarget = JvmTarget.fromTarget("11")
     }
   }
 }
