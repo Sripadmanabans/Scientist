@@ -17,14 +17,23 @@
 package com.adjectivemonk2.scientist
 
 public class Experiment<T>
-private constructor(private val enabled: Boolean, private val behaviors: Map<String, () -> T>) {
+private constructor(
+  private val enabled: Boolean,
+  private val behaviors: Map<String, () -> T>,
+  private val beforeRun: (() -> Unit)?,
+  private val afterRun: ((result: Result<T>) -> Unit)?,
+  private val publish: (result: Result<T>) -> Unit,
+) {
 
   public fun run(name: String = "control"): T {
     val control = behaviors.getValue(name)
     if (!enabled) {
       return control()
     }
+    beforeRun?.invoke()
     val result = generateResults(name, behaviors)
+    afterRun?.invoke(result)
+    publish(result)
     return result.control.answer.getOrThrow()
   }
 
@@ -37,6 +46,10 @@ private constructor(private val enabled: Boolean, private val behaviors: Map<Str
 
   public class Builder<T>() {
     private val behaviors = mutableMapOf<String, () -> T>()
+    private var beforeRun: (() -> Unit)? = null
+    private var afterRun: ((result: Result<T>) -> Unit)? = null
+    private var publish: ((result: Result<T>) -> Unit) = { _ -> }
+
     public var enabled: Boolean = false
 
     public fun control(block: () -> T) {
@@ -50,7 +63,27 @@ private constructor(private val enabled: Boolean, private val behaviors: Map<Str
       behaviors[name] = block
     }
 
-    public fun build(): Experiment<T> = Experiment(enabled = enabled, behaviors = behaviors.toMap())
+    public fun beforeRun(block: () -> Unit) {
+      beforeRun = block
+    }
+
+    public fun afterRun(block: (result: Result<T>) -> Unit) {
+      afterRun = block
+    }
+
+    public fun publish(block: (result: Result<T>) -> Unit) {
+      publish = block
+    }
+
+    public fun build(): Experiment<T> {
+      return Experiment(
+        enabled = enabled,
+        behaviors = behaviors.toMap(),
+        beforeRun = beforeRun,
+        afterRun = afterRun,
+        publish = publish,
+      )
+    }
   }
 }
 

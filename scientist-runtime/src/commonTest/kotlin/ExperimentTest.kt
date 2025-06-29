@@ -16,6 +16,7 @@
 
 import com.adjectivemonk2.scientist.BehaviorNotUniqueException
 import com.adjectivemonk2.scientist.Experiment
+import com.adjectivemonk2.scientist.Result
 import com.adjectivemonk2.scientist.science
 import com.varabyte.truthish.assertThat
 import com.varabyte.truthish.assertThrows
@@ -122,7 +123,6 @@ class ExperimentTest {
   @Test
   fun run_WithNonExistentBehaviorName() {
     val experiment = Experiment { control { "control result" } }
-
     assertThrows<NoSuchElementException> { experiment.run("non-existent") }
   }
 
@@ -145,5 +145,106 @@ class ExperimentTest {
     }
 
     assertThat(result).isEqualTo("control result")
+  }
+
+  @Test
+  fun beforeRun_Callback() {
+    var beforeRunCalled = false
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      beforeRun { beforeRunCalled = true }
+    }
+
+    experiment.run()
+
+    assertThat(beforeRunCalled).isTrue()
+  }
+
+  @Test
+  fun afterRun_Callback() {
+    var afterRunCalled = false
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      afterRun {
+        afterRunCalled = true
+        result = it
+      }
+    }
+
+    experiment.run()
+
+    assertThat(afterRunCalled).isTrue()
+    assertThat(result).isNotNull()
+    assertThat(result!!.candidates).isNotEmpty()
+  }
+
+  @Test
+  fun publish_Callback() {
+    var publishCalled = false
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish {
+        publishCalled = true
+        result = it
+      }
+    }
+
+    experiment.run()
+
+    assertThat(publishCalled).isTrue()
+    assertThat(result).isNotNull()
+    assertThat(result!!.candidates).isNotEmpty()
+  }
+
+  @Test
+  fun callbacks_ExecutionOrder() {
+    // Use a simple list to track the order of execution
+    val executionOrder = mutableListOf<String>()
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      beforeRun { executionOrder.add("beforeRun") }
+      afterRun { _ -> executionOrder.add("afterRun") }
+      publish { _ -> executionOrder.add("publish") }
+    }
+
+    experiment.run()
+
+    assertThat(executionOrder).containsExactly("beforeRun", "afterRun", "publish")
+  }
+
+  @Test
+  fun callbacks_NotCalledWhenDisabled() {
+    var beforeRunCalled = false
+    var afterRunCalled = false
+    var publishCalled = false
+
+    val experiment = Experiment {
+      enabled = false
+      control { "control result" }
+      test { "candidate result" }
+      beforeRun { beforeRunCalled = true }
+      afterRun { _ -> afterRunCalled = true }
+      publish { _ -> publishCalled = true }
+    }
+
+    experiment.run()
+
+    assertThat(beforeRunCalled).isFalse()
+    assertThat(afterRunCalled).isFalse()
+    assertThat(publishCalled).isFalse()
   }
 }
