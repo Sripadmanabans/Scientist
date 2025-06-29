@@ -23,6 +23,7 @@ private constructor(
   private val beforeRun: (() -> Unit)?,
   private val afterRun: ((result: Result<T>) -> Unit)?,
   private val publish: (result: Result<T>) -> Unit,
+  private val raised: (operation: String, throwable: Throwable) -> Unit,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -33,7 +34,11 @@ private constructor(
     beforeRun?.invoke()
     val result = generateResults(name, behaviors)
     afterRun?.invoke(result)
-    publish(result)
+    try {
+      publish(result)
+    } catch (throwable: Throwable) {
+      raised("publish", throwable)
+    }
     return result.control.answer.getOrThrow()
   }
 
@@ -49,6 +54,9 @@ private constructor(
     private var beforeRun: (() -> Unit)? = null
     private var afterRun: ((result: Result<T>) -> Unit)? = null
     private var publish: ((result: Result<T>) -> Unit) = { _ -> }
+    private var raised: (operation: String, throwable: Throwable) -> Unit = { _, throwable ->
+      throw throwable
+    }
 
     public var enabled: Boolean = false
 
@@ -75,6 +83,10 @@ private constructor(
       publish = block
     }
 
+    public fun raised(block: (operation: String, throwable: Throwable) -> Unit) {
+      raised = block
+    }
+
     public fun build(): Experiment<T> {
       return Experiment(
         enabled = enabled,
@@ -82,6 +94,7 @@ private constructor(
         beforeRun = beforeRun,
         afterRun = afterRun,
         publish = publish,
+        raised = raised,
       )
     }
   }
