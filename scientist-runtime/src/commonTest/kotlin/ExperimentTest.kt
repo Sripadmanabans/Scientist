@@ -24,21 +24,23 @@ import kotlin.test.Test
 
 class ExperimentTest {
 
+  // ===== EXPERIMENT: BUILDER TESTS =====
+
   @Test
-  fun builder_DefaultValues() {
+  fun experiment_builder_DefaultValues() {
     val builder = Experiment.Builder<String>()
     assertThat(builder.enabled).isFalse()
   }
 
   @Test
-  fun builder_Control() {
+  fun experiment_builder_Control() {
     val experiment = Experiment { control { "control result" } }
     val result = experiment.run()
     assertThat(result).isEqualTo("control result")
   }
 
   @Test
-  fun builder_Test() {
+  fun experiment_builder_Test() {
     val experiment = Experiment {
       control { "control result" }
       test("candidate") { "candidate result" }
@@ -48,7 +50,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun builder_DuplicateBehaviorName() {
+  fun experiment_builder_DuplicateBehaviorName() {
     val exception =
       assertThrows<BehaviorNotUniqueException> {
         Experiment {
@@ -60,8 +62,10 @@ class ExperimentTest {
     assertThat(exception.message).isEqualTo("control is not unique")
   }
 
+  // ===== EXPERIMENT: RUN TESTS =====
+
   @Test
-  fun run_DisabledExperiment() {
+  fun experiment_run_DisabledExperiment() {
     var controlCalled = false
     var candidateCalled = false
 
@@ -85,7 +89,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun run_EnabledExperiment() {
+  fun experiment_run_EnabledExperiment() {
     var controlCalled = false
     var candidateCalled = false
 
@@ -109,7 +113,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun run_WithSpecifiedBehaviorName() {
+  fun experiment_run_WithSpecifiedBehaviorName() {
     val experiment = Experiment {
       control { "control result" }
       test("candidate") { "candidate result" }
@@ -121,13 +125,13 @@ class ExperimentTest {
   }
 
   @Test
-  fun run_WithNonExistentBehaviorName() {
+  fun experiment_run_WithNonExistentBehaviorName() {
     val experiment = Experiment { control { "control result" } }
     assertThrows<NoSuchElementException> { experiment.run("non-existent") }
   }
 
   @Test
-  fun run_ControlThrowsException() {
+  fun experiment_run_ControlThrowsException() {
     val exception = RuntimeException("control exception")
     val experiment = Experiment {
       control { throw exception }
@@ -137,18 +141,10 @@ class ExperimentTest {
     assertThrows<RuntimeException> { experiment.run() }
   }
 
-  @Test
-  fun science_Function() {
-    val result = science {
-      control { "control result" }
-      test { "candidate result" }
-    }
-
-    assertThat(result).isEqualTo("control result")
-  }
+  // ===== EXPERIMENT: CALLBACK TESTS =====
 
   @Test
-  fun beforeRun_Callback() {
+  fun experiment_callbacks_BeforeRun() {
     var beforeRunCalled = false
 
     val experiment = Experiment {
@@ -164,7 +160,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun afterRun_Callback() {
+  fun experiment_callbacks_AfterRun() {
     var afterRunCalled = false
     var result: Result<String>? = null
 
@@ -186,7 +182,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun publish_Callback() {
+  fun experiment_callbacks_Publish() {
     var publishCalled = false
     var result: Result<String>? = null
 
@@ -208,7 +204,7 @@ class ExperimentTest {
   }
 
   @Test
-  fun callbacks_ExecutionOrder() {
+  fun experiment_callbacks_ExecutionOrder() {
     // Use a simple list to track the order of execution
     val executionOrder = mutableListOf<String>()
 
@@ -227,7 +223,49 @@ class ExperimentTest {
   }
 
   @Test
-  fun callbacks_NotCalledWhenDisabled() {
+  fun experiment_callbacks_RaisedDefaultBehavior() {
+    val publishException = RuntimeException("publish exception")
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { _ -> throw publishException }
+    }
+
+    val exception = assertThrows<RuntimeException> { experiment.run() }
+    assertThat(exception).isSameAs(publishException)
+  }
+
+  @Test
+  fun experiment_callbacks_RaisedCustomImplementation() {
+    val publishException = RuntimeException("publish exception")
+    var raisedCalled = false
+    var capturedOperation: String? = null
+    var capturedThrowable: Throwable? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { _ -> throw publishException }
+      raised { operation, throwable ->
+        raisedCalled = true
+        capturedOperation = operation
+        capturedThrowable = throwable
+      }
+    }
+
+    val result = experiment.run()
+
+    assertThat(result).isEqualTo("control result")
+    assertThat(raisedCalled).isTrue()
+    assertThat(capturedOperation).isEqualTo("publish")
+    assertThat(capturedThrowable).isSameAs(publishException)
+  }
+
+  @Test
+  fun experiment_callbacks_NotCalledWhenDisabled() {
     var beforeRunCalled = false
     var afterRunCalled = false
     var publishCalled = false
@@ -246,5 +284,111 @@ class ExperimentTest {
     assertThat(beforeRunCalled).isFalse()
     assertThat(afterRunCalled).isFalse()
     assertThat(publishCalled).isFalse()
+  }
+
+  // ===== SCIENCE FUNCTION TESTS =====
+
+  @Test
+  fun science_BasicFunction() {
+    val result = science {
+      control { "control result" }
+      test { "candidate result" }
+    }
+
+    assertThat(result).isEqualTo("control result")
+  }
+
+  @Test
+  fun science_EnabledExperiment() {
+    var controlCalled = false
+    var candidateCalled = false
+
+    val result = science {
+      enabled = true
+      control {
+        controlCalled = true
+        "control result"
+      }
+      test {
+        candidateCalled = true
+        "candidate result"
+      }
+    }
+
+    assertThat(result).isEqualTo("control result")
+    assertThat(controlCalled).isTrue()
+    assertThat(candidateCalled).isTrue()
+  }
+
+  @Test
+  fun science_ControlThrowsException() {
+    val exception = RuntimeException("control exception")
+
+    assertThrows<RuntimeException> {
+      science {
+        control { throw exception }
+        test { "candidate result" }
+      }
+    }
+  }
+
+  @Test
+  fun science_WithCallbacks() {
+    var beforeRunCalled = false
+    var afterRunCalled = false
+    var publishCalled = false
+
+    val result = science {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      beforeRun { beforeRunCalled = true }
+      afterRun { _ -> afterRunCalled = true }
+      publish { _ -> publishCalled = true }
+    }
+
+    assertThat(result).isEqualTo("control result")
+    assertThat(beforeRunCalled).isTrue()
+    assertThat(afterRunCalled).isTrue()
+    assertThat(publishCalled).isTrue()
+  }
+
+  @Test
+  fun science_WithRaisedCallback() {
+    val publishException = RuntimeException("publish exception")
+    var raisedCalled = false
+
+    val result = science {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { _ -> throw publishException }
+      raised { _, _ -> raisedCalled = true }
+    }
+
+    assertThat(result).isEqualTo("control result")
+    assertThat(raisedCalled).isTrue()
+  }
+
+  @Test
+  fun science_DisabledExperiment() {
+    var controlCalled = false
+    var candidateCalled = false
+
+    val result = science {
+      enabled = false
+      control {
+        controlCalled = true
+        "control result"
+      }
+      test {
+        candidateCalled = true
+        "candidate result"
+      }
+    }
+
+    assertThat(result).isEqualTo("control result")
+    assertThat(controlCalled).isTrue()
+    assertThat(candidateCalled).isFalse()
   }
 }
