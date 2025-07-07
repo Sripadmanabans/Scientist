@@ -24,6 +24,8 @@ private constructor(
   private val afterRun: ((result: Result<T>) -> Unit)?,
   private val publish: (result: Result<T>) -> Unit,
   private val raised: (operation: String, throwable: Throwable) -> Unit,
+  internal val compare: ((T, T) -> Boolean)?,
+  internal val compareError: ((Throwable, Throwable) -> Boolean)?,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -46,7 +48,7 @@ private constructor(
     val observations =
       behaviors.keys.shuffled().map { key -> Observation.create(key, behaviors.getValue(key)) }
     val control = observations.first { it.name == name }
-    return Result(control, observations - control)
+    return Result.create(this, control, observations - control)
   }
 
   public class Builder<T>() {
@@ -57,6 +59,9 @@ private constructor(
     private var raised: (operation: String, throwable: Throwable) -> Unit = { _, throwable ->
       throw throwable
     }
+
+    private var compare: ((T, T) -> Boolean)? = null
+    private var compareError: ((Throwable, Throwable) -> Boolean)? = null
 
     public var enabled: Boolean = false
 
@@ -87,6 +92,14 @@ private constructor(
       raised = block
     }
 
+    public fun compare(block: (T, T) -> Boolean) {
+      compare = block
+    }
+
+    public fun compareError(block: (Throwable, Throwable) -> Boolean) {
+      compareError = block
+    }
+
     public fun build(): Experiment<T> {
       return Experiment(
         enabled = enabled,
@@ -95,6 +108,8 @@ private constructor(
         afterRun = afterRun,
         publish = publish,
         raised = raised,
+        compare = compare,
+        compareError = compareError,
       )
     }
   }
