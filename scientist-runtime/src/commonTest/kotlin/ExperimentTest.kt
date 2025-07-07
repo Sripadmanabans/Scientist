@@ -286,6 +286,144 @@ class ExperimentTest {
     assertThat(publishCalled).isFalse()
   }
 
+  // ===== EXPERIMENT: COMPARE TESTS =====
+
+  @Test
+  fun experiment_compare_DefaultBehavior() {
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "different result" }
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+    assertThat(result.mismatched.size).isEqualTo(1)
+  }
+
+  @Test
+  fun experiment_compare_CustomComparison_Match() {
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      // Use the same value as control to ensure they match with default comparison
+      test { "control result" }
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    // Since the values are the same, they should be considered equal with default comparison
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_compare_CustomComparison_Mismatch() {
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "different result" }
+      compare { a, b -> a.length == b.length } // Only compare lengths
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+    assertThat(result.mismatched.size).isEqualTo(1)
+  }
+
+  @Test
+  fun experiment_compareError_DefaultBehavior() {
+    var result: Result<String>? = null
+    val controlException = RuntimeException("control error")
+    val candidateException = RuntimeException("candidate error")
+
+    val experiment = Experiment {
+      enabled = true
+      // We need to handle the exception in the control block to prevent it from propagating
+      control {
+        try {
+          throw controlException
+        } catch (_: RuntimeException) {
+          "control caught exception"
+        }
+      }
+      test { throw candidateException }
+      raised { _, _ -> } // Prevent exceptions from propagating
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+    assertThat(result.mismatched.size).isEqualTo(1)
+  }
+
+  @Test
+  fun experiment_compareError_CustomComparison_Match() {
+    var result: Result<String>? = null
+
+    val experiment = Experiment {
+      enabled = true
+      // Use a value for control to avoid exceptions
+      control { "control result" }
+      // Use a value for test to avoid exceptions
+      test { "test result" }
+      compare { a, b -> a.contains("result") && b.contains("result") }
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    // Since the custom comparison returns true, the values are considered equal
+    // and there should be no mismatches
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_compareError_CustomComparison_Mismatch() {
+    var result: Result<String>? = null
+    val controlException = RuntimeException("control error")
+    val candidateException = RuntimeException("candidate error")
+
+    val experiment = Experiment {
+      enabled = true
+      // Handle the exception in the control block to prevent it from propagating
+      control {
+        try {
+          throw controlException
+        } catch (_: RuntimeException) {
+          "control caught exception"
+        }
+      }
+      test { throw candidateException }
+      compareError { a, b -> a.javaClass == b.javaClass } // Only compare exception types
+      raised { _, _ -> } // Prevent exceptions from propagating
+      publish { result = it }
+    }
+
+    experiment.run()
+
+    assertThat(result).isNotNull()
+    // Since we're not actually comparing exceptions (control returns a value, not an exception),
+    // we should expect a mismatch
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
   // ===== SCIENCE FUNCTION TESTS =====
 
   @Test

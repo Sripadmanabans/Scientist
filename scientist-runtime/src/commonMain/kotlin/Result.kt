@@ -16,7 +16,22 @@
 
 package com.adjectivemonk2.scientist
 
-public class Result<T>(
+public class Result<T>
+private constructor(
   public val control: Observation<T>,
   public val candidates: List<Observation<T>>,
-)
+  public val mismatched: List<Observation<T>>,
+) {
+
+  internal companion object {
+    fun <T> create(
+      experiment: Experiment<T>,
+      control: Observation<T>,
+      candidates: List<Observation<T>>,
+    ): Result<T> {
+      val mismatched =
+        candidates.filterNot { control.equals(it, experiment.compare, experiment.compareError) }
+      return Result(control, candidates, mismatched)
+    }
+  }
+}

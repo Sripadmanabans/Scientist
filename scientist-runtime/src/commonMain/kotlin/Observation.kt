@@ -24,6 +24,29 @@ public class Observation<T>(
   public val answer: Answer<T>,
   public val duration: Duration,
 ) {
+
+  internal fun equals(
+    other: Observation<T>?,
+    compare: ((T, T) -> Boolean)?,
+    compareError: ((Throwable, Throwable) -> Boolean)?,
+  ): Boolean {
+    if (this === other) return true
+    if (other == null) return false
+
+    val otherAnswer = other.answer
+    return if (answer.isSuccess && otherAnswer.isSuccess) {
+      val thisValue = answer.getOrThrow()
+      val otherValue = otherAnswer.getOrThrow()
+      compare?.invoke(thisValue, otherValue) ?: (thisValue == otherValue)
+    } else if (answer.isFailure && otherAnswer.isFailure) {
+      val thisError = answer.exceptionOrNull()!!
+      val otherError = otherAnswer.exceptionOrNull()!!
+      compareError?.invoke(thisError, otherError) ?: (thisError == otherError)
+    } else {
+      false
+    }
+  }
+
   internal companion object {
     fun <T> create(name: String, block: () -> T): Observation<T> {
       val (answer, duration) = measureTimedValue { runCatching { block() } }
