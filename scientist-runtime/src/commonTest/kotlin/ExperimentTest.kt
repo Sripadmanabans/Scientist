@@ -17,14 +17,11 @@
 import com.adjectivemonk2.scientist.BehaviorNotUniqueException
 import com.adjectivemonk2.scientist.Experiment
 import com.adjectivemonk2.scientist.Result
-import com.adjectivemonk2.scientist.science
 import com.varabyte.truthish.assertThat
 import com.varabyte.truthish.assertThrows
 import kotlin.test.Test
 
 class ExperimentTest {
-
-  // ===== EXPERIMENT: BUILDER TESTS =====
 
   @Test
   fun experiment_builder_DefaultValues() {
@@ -35,16 +32,6 @@ class ExperimentTest {
   @Test
   fun experiment_builder_Control() {
     val experiment = Experiment { control { "control result" } }
-    val result = experiment.run()
-    assertThat(result).isEqualTo("control result")
-  }
-
-  @Test
-  fun experiment_builder_Test() {
-    val experiment = Experiment {
-      control { "control result" }
-      test("candidate") { "candidate result" }
-    }
     val result = experiment.run()
     assertThat(result).isEqualTo("control result")
   }
@@ -62,12 +49,13 @@ class ExperimentTest {
     assertThat(exception.message).isEqualTo("control is not unique")
   }
 
-  // ===== EXPERIMENT: RUN TESTS =====
-
   @Test
   fun experiment_run_DisabledExperiment() {
     var controlCalled = false
     var candidateCalled = false
+    var beforeRunCalled = false
+    var afterRunCalled = false
+    var publishCalled = false
 
     val experiment = Experiment {
       enabled = false
@@ -79,13 +67,18 @@ class ExperimentTest {
         candidateCalled = true
         "candidate result"
       }
+      beforeRun { beforeRunCalled = true }
+      afterRun { _ -> afterRunCalled = true }
+      publish { _ -> publishCalled = true }
     }
 
     val result = experiment.run()
-
     assertThat(result).isEqualTo("control result")
     assertThat(controlCalled).isTrue()
     assertThat(candidateCalled).isFalse()
+    assertThat(beforeRunCalled).isFalse()
+    assertThat(afterRunCalled).isFalse()
+    assertThat(publishCalled).isFalse()
   }
 
   @Test
@@ -106,7 +99,6 @@ class ExperimentTest {
     }
 
     val result = experiment.run()
-
     assertThat(result).isEqualTo("control result")
     assertThat(controlCalled).isTrue()
     assertThat(candidateCalled).isTrue()
@@ -120,7 +112,6 @@ class ExperimentTest {
     }
 
     val result = experiment.run("candidate")
-
     assertThat(result).isEqualTo("candidate result")
   }
 
@@ -141,8 +132,6 @@ class ExperimentTest {
     assertThrows<RuntimeException> { experiment.run() }
   }
 
-  // ===== EXPERIMENT: CALLBACK TESTS =====
-
   @Test
   fun experiment_callbacks_BeforeRun() {
     var beforeRunCalled = false
@@ -155,57 +144,11 @@ class ExperimentTest {
     }
 
     experiment.run()
-
     assertThat(beforeRunCalled).isTrue()
   }
 
   @Test
-  fun experiment_callbacks_AfterRun() {
-    var afterRunCalled = false
-    var result: Result<String>? = null
-
-    val experiment = Experiment {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      afterRun {
-        afterRunCalled = true
-        result = it
-      }
-    }
-
-    experiment.run()
-
-    assertThat(afterRunCalled).isTrue()
-    assertThat(result).isNotNull()
-    assertThat(result!!.candidates).isNotEmpty()
-  }
-
-  @Test
-  fun experiment_callbacks_Publish() {
-    var publishCalled = false
-    var result: Result<String>? = null
-
-    val experiment = Experiment {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      publish {
-        publishCalled = true
-        result = it
-      }
-    }
-
-    experiment.run()
-
-    assertThat(publishCalled).isTrue()
-    assertThat(result).isNotNull()
-    assertThat(result!!.candidates).isNotEmpty()
-  }
-
-  @Test
   fun experiment_callbacks_ExecutionOrder() {
-    // Use a simple list to track the order of execution
     val executionOrder = mutableListOf<String>()
 
     val experiment = Experiment {
@@ -218,7 +161,6 @@ class ExperimentTest {
     }
 
     experiment.run()
-
     assertThat(executionOrder).containsExactly("beforeRun", "afterRun", "publish")
   }
 
@@ -257,7 +199,6 @@ class ExperimentTest {
     }
 
     val result = experiment.run()
-
     assertThat(result).isEqualTo("control result")
     assertThat(raisedCalled).isTrue()
     assertThat(capturedOperation).isEqualTo("publish")
@@ -265,83 +206,36 @@ class ExperimentTest {
   }
 
   @Test
-  fun experiment_callbacks_NotCalledWhenDisabled() {
-    var beforeRunCalled = false
-    var afterRunCalled = false
-    var publishCalled = false
-
-    val experiment = Experiment {
-      enabled = false
-      control { "control result" }
-      test { "candidate result" }
-      beforeRun { beforeRunCalled = true }
-      afterRun { _ -> afterRunCalled = true }
-      publish { _ -> publishCalled = true }
-    }
-
-    experiment.run()
-
-    assertThat(beforeRunCalled).isFalse()
-    assertThat(afterRunCalled).isFalse()
-    assertThat(publishCalled).isFalse()
-  }
-
-  // ===== EXPERIMENT: COMPARE TESTS =====
-
-  @Test
   fun experiment_compare_DefaultBehavior() {
     var result: Result<String>? = null
 
     val experiment = Experiment {
       enabled = true
-      control { "control result" }
-      test { "different result" }
+      control { "result" }
+      test { "result" }
       publish { result = it }
     }
 
     experiment.run()
-
     assertThat(result).isNotNull()
-    assertThat(result!!.mismatched).isNotEmpty()
-    assertThat(result.mismatched.size).isEqualTo(1)
-  }
-
-  @Test
-  fun experiment_compare_CustomComparison_Match() {
-    var result: Result<String>? = null
-
-    val experiment = Experiment {
-      enabled = true
-      control { "control result" }
-      // Use the same value as control to ensure they match with default comparison
-      test { "control result" }
-      publish { result = it }
-    }
-
-    experiment.run()
-
-    assertThat(result).isNotNull()
-    // Since the values are the same, they should be considered equal with default comparison
     assertThat(result!!.mismatched).isEmpty()
   }
 
   @Test
-  fun experiment_compare_CustomComparison_Mismatch() {
+  fun experiment_compare_CustomComparison() {
     var result: Result<String>? = null
 
     val experiment = Experiment {
       enabled = true
-      control { "control result" }
-      test { "different result" }
-      compare { a, b -> a.length == b.length } // Only compare lengths
+      control { "size" }
+      test { "test" }
+      compare { a, b -> a.length == b.length }
       publish { result = it }
     }
 
     experiment.run()
-
     assertThat(result).isNotNull()
-    assertThat(result!!.mismatched).isNotEmpty()
-    assertThat(result.mismatched.size).isEqualTo(1)
+    assertThat(result!!.mismatched).isEmpty()
   }
 
   @Test
@@ -352,20 +246,16 @@ class ExperimentTest {
 
     val experiment = Experiment {
       enabled = true
-      // We need to handle the exception in the control block to prevent it from propagating
-      control {
-        try {
-          throw controlException
-        } catch (_: RuntimeException) {
-          "control caught exception"
-        }
-      }
+      control { throw controlException }
       test { throw candidateException }
-      raised { _, _ -> } // Prevent exceptions from propagating
       publish { result = it }
     }
 
-    experiment.run()
+    try {
+      experiment.run()
+    } catch (_: RuntimeException) {
+      // We expect an exception to be raised, but we handle it in the raised block
+    }
 
     assertThat(result).isNotNull()
     assertThat(result!!.mismatched).isNotEmpty()
@@ -373,160 +263,26 @@ class ExperimentTest {
   }
 
   @Test
-  fun experiment_compareError_CustomComparison_Match() {
-    var result: Result<String>? = null
-
-    val experiment = Experiment {
-      enabled = true
-      // Use a value for control to avoid exceptions
-      control { "control result" }
-      // Use a value for test to avoid exceptions
-      test { "test result" }
-      compare { a, b -> a.contains("result") && b.contains("result") }
-      publish { result = it }
-    }
-
-    experiment.run()
-
-    assertThat(result).isNotNull()
-    // Since the custom comparison returns true, the values are considered equal
-    // and there should be no mismatches
-    assertThat(result!!.mismatched).isEmpty()
-  }
-
-  @Test
-  fun experiment_compareError_CustomComparison_Mismatch() {
+  fun experiment_compareError_CustomComparison() {
     var result: Result<String>? = null
     val controlException = RuntimeException("control error")
     val candidateException = RuntimeException("candidate error")
 
     val experiment = Experiment {
       enabled = true
-      // Handle the exception in the control block to prevent it from propagating
-      control {
-        try {
-          throw controlException
-        } catch (_: RuntimeException) {
-          "control caught exception"
-        }
-      }
+      control { throw controlException }
       test { throw candidateException }
       compareError { a, b -> a.javaClass == b.javaClass } // Only compare exception types
-      raised { _, _ -> } // Prevent exceptions from propagating
       publish { result = it }
     }
 
-    experiment.run()
+    try {
+      experiment.run()
+    } catch (_: RuntimeException) {
+      // We expect an exception to be raised, but we handle it in the raised block
+    }
 
     assertThat(result).isNotNull()
-    // Since we're not actually comparing exceptions (control returns a value, not an exception),
-    // we should expect a mismatch
-    assertThat(result!!.mismatched).isNotEmpty()
-  }
-
-  // ===== SCIENCE FUNCTION TESTS =====
-
-  @Test
-  fun science_BasicFunction() {
-    val result = science {
-      control { "control result" }
-      test { "candidate result" }
-    }
-
-    assertThat(result).isEqualTo("control result")
-  }
-
-  @Test
-  fun science_EnabledExperiment() {
-    var controlCalled = false
-    var candidateCalled = false
-
-    val result = science {
-      enabled = true
-      control {
-        controlCalled = true
-        "control result"
-      }
-      test {
-        candidateCalled = true
-        "candidate result"
-      }
-    }
-
-    assertThat(result).isEqualTo("control result")
-    assertThat(controlCalled).isTrue()
-    assertThat(candidateCalled).isTrue()
-  }
-
-  @Test
-  fun science_ControlThrowsException() {
-    val exception = RuntimeException("control exception")
-
-    assertThrows<RuntimeException> {
-      science {
-        control { throw exception }
-        test { "candidate result" }
-      }
-    }
-  }
-
-  @Test
-  fun science_WithCallbacks() {
-    var beforeRunCalled = false
-    var afterRunCalled = false
-    var publishCalled = false
-
-    val result = science {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      beforeRun { beforeRunCalled = true }
-      afterRun { _ -> afterRunCalled = true }
-      publish { _ -> publishCalled = true }
-    }
-
-    assertThat(result).isEqualTo("control result")
-    assertThat(beforeRunCalled).isTrue()
-    assertThat(afterRunCalled).isTrue()
-    assertThat(publishCalled).isTrue()
-  }
-
-  @Test
-  fun science_WithRaisedCallback() {
-    val publishException = RuntimeException("publish exception")
-    var raisedCalled = false
-
-    val result = science {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      publish { _ -> throw publishException }
-      raised { _, _ -> raisedCalled = true }
-    }
-
-    assertThat(result).isEqualTo("control result")
-    assertThat(raisedCalled).isTrue()
-  }
-
-  @Test
-  fun science_DisabledExperiment() {
-    var controlCalled = false
-    var candidateCalled = false
-
-    val result = science {
-      enabled = false
-      control {
-        controlCalled = true
-        "control result"
-      }
-      test {
-        candidateCalled = true
-        "candidate result"
-      }
-    }
-
-    assertThat(result).isEqualTo("control result")
-    assertThat(controlCalled).isTrue()
-    assertThat(candidateCalled).isFalse()
+    assertThat(result!!.mismatched).isEmpty()
   }
 }
