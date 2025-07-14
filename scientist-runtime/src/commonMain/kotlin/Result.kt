@@ -21,17 +21,33 @@ private constructor(
   public val control: Observation<T>,
   public val candidates: List<Observation<T>>,
   public val mismatched: List<Observation<T>>,
+  public val ignored: List<Observation<T>>,
 ) {
 
   internal companion object {
     fun <T> create(
       control: Observation<T>,
       candidates: List<Observation<T>>,
+      raised: (operation: String, throwable: Throwable) -> Unit,
       compare: ((T, T) -> Boolean)?,
       compareError: ((Throwable, Throwable) -> Boolean)?,
+      ignores: List<(T?, T?) -> Boolean>?,
     ): Result<T> {
       val mismatched = candidates.filterNot { control.equals(it, compare, compareError) }
-      return Result(control, candidates, mismatched)
+
+      val ignored =
+        mismatched.filter { candidate ->
+          ignores?.any { ignore ->
+            try {
+              ignore(control.answer.getOrThrow(), candidate.answer.getOrThrow())
+            } catch (throwable: Throwable) {
+              raised("ignore", throwable)
+              false
+            }
+          } ?: false
+        }
+
+      return Result(control, candidates, mismatched - ignored, ignored)
     }
   }
 }

@@ -21,10 +21,12 @@ import kotlin.test.Test
 
 class ResultTest {
 
+  private val raised = { _: String, _: Throwable -> }
+
   @Test
   fun test_create_onlyControl() {
     val control = Observation.create("control") { "Control Result" }
-    val result = Result.create(control, emptyList(), null, null)
+    val result = Result.create(control, emptyList(), raised, null, null, null)
     assertThat(result.control).isEqualTo(control)
     assertThat(result.candidates).isEmpty()
     assertThat(result.mismatched).isEmpty()
@@ -35,8 +37,7 @@ class ResultTest {
     val control = Observation.create("control") { "Control Result" }
     val candidate = Observation.create("candidate") { "Candidate Result" }
     val candidate2 = Observation.create("candidate2") { "Candidate2 Result" }
-    val result =
-      Result.create(control, listOf<Observation<String>>(candidate, candidate2), null, null)
+    val result = Result.create(control, listOf(candidate, candidate2), raised, null, null, null)
     assertThat(result.control).isEqualTo(control)
     assertThat(result.candidates).containsExactly(candidate, candidate2)
     assertThat(result.mismatched).containsExactly(candidate, candidate2)
@@ -47,8 +48,7 @@ class ResultTest {
     val control = Observation.create("control") { "Control Result" }
     val candidate = Observation.create("candidate") { "Control Result" }
     val candidate2 = Observation.create("candidate2") { "Candidate2 Result" }
-    val result =
-      Result.create(control, listOf<Observation<String>>(candidate, candidate2), null, null)
+    val result = Result.create(control, listOf(candidate, candidate2), raised, null, null, null)
     assertThat(result.control).isEqualTo(control)
     assertThat(result.candidates).containsExactly(candidate, candidate2)
     assertThat(result.mismatched).containsExactly(candidate2)
@@ -59,10 +59,58 @@ class ResultTest {
     val control = Observation.create("control") { "Control Result" }
     val candidate = Observation.create("candidate") { "Control Result" }
     val candidate2 = Observation.create("candidate2") { "Control Result" }
-    val result =
-      Result.create(control, listOf<Observation<String>>(candidate, candidate2), null, null)
+    val result = Result.create(control, listOf(candidate, candidate2), raised, null, null, null)
     assertThat(result.control).isEqualTo(control)
     assertThat(result.candidates).containsExactly(candidate, candidate2)
     assertThat(result.mismatched).isEmpty()
+  }
+
+  @Test
+  fun test_create_control_candidates_ignore() {
+    val control = Observation.create("control") { "Control Result" }
+    val candidate = Observation.create("candidate") { "Candidate Result" }
+    val candidate2 = Observation.create("candidate2") { "Candidate2 Result" }
+    val ignore = { a: String?, b: String? -> b?.contains("2") ?: false }
+    val result =
+      Result.create(
+        control = control,
+        candidates = listOf(candidate, candidate2),
+        raised = raised,
+        compare = null,
+        compareError = null,
+        ignores = listOf(ignore),
+      )
+    assertThat(result.control).isEqualTo(control)
+    assertThat(result.candidates).containsExactly(candidate, candidate2)
+    assertThat(result.mismatched).containsExactly(candidate)
+    assertThat(result.ignored).containsExactly(candidate2)
+  }
+
+  @Test
+  fun test_create_control_candidates_ignore_throws() {
+    val control = Observation.create("control") { "Control Result" }
+    val candidate = Observation.create("candidate") { "Candidate Result" }
+    val ignoreThrowable = RuntimeException("Ignore")
+    val ignore = { a: String?, b: String? -> throw ignoreThrowable }
+    var caughtOperation: String? = null
+    var caughtException: Throwable? = null
+    val result =
+      Result.create(
+        control = control,
+        candidates = listOf(candidate),
+        raised = { operation, throwable ->
+          caughtOperation = operation
+          caughtException = throwable
+        },
+        compare = null,
+        compareError = null,
+        ignores = listOf(ignore),
+      )
+    assertThat(result.control).isEqualTo(control)
+    assertThat(result.candidates).containsExactly(candidate)
+    assertThat(result.mismatched).containsExactly(candidate)
+    assertThat(result.ignored).isEmpty()
+    assertThat(caughtOperation).isEqualTo("ignore")
+    assertThat(caughtException).isEqualTo(ignoreThrowable)
   }
 }
