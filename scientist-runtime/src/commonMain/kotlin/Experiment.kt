@@ -26,6 +26,7 @@ private constructor(
   private val raised: (operation: String, throwable: Throwable) -> Unit,
   private val compare: ((T, T) -> Boolean)?,
   private val compareError: ((Throwable, Throwable) -> Boolean)?,
+  private val ignores: List<(T?, T?) -> Boolean>?,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -48,7 +49,7 @@ private constructor(
     val observations =
       behaviors.keys.shuffled().map { key -> Observation.create(key, behaviors.getValue(key)) }
     val control = observations.first { it.name == name }
-    return Result.create(control, observations - control, compare, compareError)
+    return Result.create(control, observations - control, raised, compare, compareError, ignores)
   }
 
   public class Builder<T>() {
@@ -62,6 +63,8 @@ private constructor(
 
     private var compare: ((T, T) -> Boolean)? = null
     private var compareError: ((Throwable, Throwable) -> Boolean)? = null
+
+    private var ignores: MutableList<(T?, T?) -> Boolean>? = null
 
     public var enabled: Boolean = false
 
@@ -100,6 +103,13 @@ private constructor(
       compareError = block
     }
 
+    public fun ignore(block: (T?, T?) -> Boolean) {
+      if (ignores == null) {
+        ignores = mutableListOf()
+      }
+      ignores!!.add(block)
+    }
+
     public fun build(): Experiment<T> {
       return Experiment(
         enabled = enabled,
@@ -110,6 +120,7 @@ private constructor(
         raised = raised,
         compare = compare,
         compareError = compareError,
+        ignores = ignores?.toList(),
       )
     }
   }

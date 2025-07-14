@@ -285,4 +285,17 @@ class ExperimentTest {
     assertThat(result).isNotNull()
     assertThat(result!!.mismatched).isEmpty()
   }
+
+  @Test
+  fun experiment_with_ignores() {
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      ignore { control, candidate -> candidate?.contains("result") ?: false }
+      ignore { control, candidate -> candidate?.contains("candidate") ?: false }
+    }
+    val result = experiment.run()
+    assertThat(result).isEqualTo("control result")
+  }
 }
