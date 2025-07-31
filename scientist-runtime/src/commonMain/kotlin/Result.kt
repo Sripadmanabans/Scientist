@@ -20,8 +20,8 @@ public class Result<T>
 private constructor(
   public val control: Observation<T>,
   public val candidates: List<Observation<T>>,
-  public val mismatched: List<Observation<T>>,
-  public val ignored: List<Observation<T>>,
+  public val mismatched: Set<Observation<T>>,
+  public val ignored: Set<Observation<T>>,
 ) {
 
   internal companion object {
@@ -33,10 +33,11 @@ private constructor(
       compareError: ((Throwable, Throwable) -> Boolean)?,
       ignores: List<(T?, T?) -> Boolean>?,
     ): Result<T> {
-      val mismatched = candidates.filterNot { control.equals(it, compare, compareError) }
+      val mismatched =
+        candidates.filterNotTo(mutableSetOf()) { control.equals(it, compare, compareError) }
 
       val ignored =
-        mismatched.filter { candidate ->
+        mismatched.filterTo(mutableSetOf()) { candidate ->
           ignores?.any { ignore ->
             try {
               ignore(control.answer.getOrThrow(), candidate.answer.getOrThrow())

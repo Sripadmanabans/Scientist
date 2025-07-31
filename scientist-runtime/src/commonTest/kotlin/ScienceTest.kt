@@ -56,12 +56,7 @@ class ScienceTest {
   fun science_ControlThrowsException() {
     val exception = RuntimeException("control exception")
 
-    assertThrows<RuntimeException> {
-      science {
-        control { throw exception }
-        test { "candidate result" }
-      }
-    }
+    assertThrows<RuntimeException> { science { control { throw exception } } }
   }
 
   @Test

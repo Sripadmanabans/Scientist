@@ -70,7 +70,7 @@ class ResultTest {
     val control = Observation.create("control") { "Control Result" }
     val candidate = Observation.create("candidate") { "Candidate Result" }
     val candidate2 = Observation.create("candidate2") { "Candidate2 Result" }
-    val ignore = { a: String?, b: String? -> b?.contains("2") ?: false }
+    val ignore = { _: String?, b: String? -> b?.contains("2") ?: false }
     val result =
       Result.create(
         control = control,
@@ -91,7 +91,7 @@ class ResultTest {
     val control = Observation.create("control") { "Control Result" }
     val candidate = Observation.create("candidate") { "Candidate Result" }
     val ignoreThrowable = RuntimeException("Ignore")
-    val ignore = { a: String?, b: String? -> throw ignoreThrowable }
+    val ignore = { _: String?, _: String? -> throw ignoreThrowable }
     var caughtOperation: String? = null
     var caughtException: Throwable? = null
     val result =

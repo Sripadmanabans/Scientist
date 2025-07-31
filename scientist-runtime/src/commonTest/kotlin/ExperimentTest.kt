@@ -292,8 +292,8 @@ class ExperimentTest {
       enabled = true
       control { "control result" }
       test { "candidate result" }
-      ignore { control, candidate -> candidate?.contains("result") ?: false }
-      ignore { control, candidate -> candidate?.contains("candidate") ?: false }
+      ignore { _, candidate -> candidate?.contains("result") ?: false }
+      ignore { _, candidate -> candidate?.contains("candidate") ?: false }
     }
     val result = experiment.run()
     assertThat(result).isEqualTo("control result")
