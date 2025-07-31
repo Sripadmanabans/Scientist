@@ -85,8 +85,8 @@ class AnswerTest {
   fun getOrDefault_Failure() {
     val exception = RuntimeException("test exception")
     val answer = Answer.failure<String>(exception)
-    val result = answer.getOrDefault("default")
-    assertThat(result).isEqualTo("default")
+    val result = answer.getOrDefault("defaultValue")
+    assertThat(result).isEqualTo("defaultValue")
   }
 
   @Test
