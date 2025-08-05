@@ -23,10 +23,10 @@ private constructor(
   private val beforeRun: (() -> Unit)?,
   private val afterRun: ((result: Result<T>) -> Unit)?,
   private val publish: (result: Result<T>) -> Unit,
-  private val raised: (operation: String, throwable: Throwable) -> Unit,
-  private val compare: ((T, T) -> Boolean)?,
-  private val compareError: ((Throwable, Throwable) -> Boolean)?,
-  private val ignores: List<(T?, T?) -> Boolean>?,
+  internal val raised: (operation: String, throwable: Throwable) -> Unit,
+  internal val compare: ((T, T) -> Boolean)?,
+  internal val compareError: ((Throwable, Throwable) -> Boolean)?,
+  internal val ignores: List<(T?, T?) -> Boolean>?,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -47,9 +47,24 @@ private constructor(
 
   private fun generateResults(name: String, behaviors: Map<String, () -> T>): Result<T> {
     val observations =
-      behaviors.keys.shuffled().map { key -> Observation.create(key, behaviors.getValue(key)) }
+      behaviors.keys.shuffled().map { key ->
+        Observation.create(key, this, behaviors.getValue(key))
+      }
     val control = observations.first { it.name == name }
-    return Result.create(control, observations - control, raised, compare, compareError, ignores)
+    val candidates = observations - control
+    val mismatched = candidates.filterNotTo(mutableSetOf()) { control == it }
+    val ignored =
+      mismatched.filterTo(mutableSetOf()) { candidate ->
+        ignores?.any { ignore ->
+          try {
+            ignore(control.answer.getOrThrow(), candidate.answer.getOrThrow())
+          } catch (throwable: Throwable) {
+            raised("ignore", throwable)
+            false
+          }
+        } ?: false
+      }
+    return Result(control, observations - control, mismatched, ignored)
   }
 
   public class Builder<T>() {

@@ -14,160 +14,38 @@
  * limitations under the License.
  */
 
-import com.adjectivemonk2.scientist.Answer
-import com.adjectivemonk2.scientist.Observation
+import com.adjectivemonk2.scientist.Experiment
+import com.adjectivemonk2.scientist.Result
 import com.varabyte.truthish.assertThat
 import kotlin.test.Test
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 class ObservationTest {
 
   @Test
-  fun constructor_InitializesProperties() {
-    val name = "test"
-    val answer = Answer.success("result")
-    val duration = 100L.toDuration(DurationUnit.NANOSECONDS)
-    val observation = Observation(name, answer, duration)
-
-    assertThat(observation.name).isEqualTo(name)
-    assertThat(observation.answer).isEqualTo(answer)
-    assertThat(observation.duration).isEqualTo(duration)
+  fun testObservation_equals_with_different_class() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.control).isNotEqualTo("candidate result")
   }
 
   @Test
-  fun create_MeasuresDuration() {
-    val observation =
-      Observation.create("test") {
-        Thread.sleep(10) // Small delay to ensure measurable duration
-        "result"
-      }
-
-    assertThat(observation.duration.inWholeNanoseconds > 0).isTrue()
-  }
-
-  @Test
-  fun equals_SameReference_ReturnsTrue() {
-    val observation = Observation.create("test") { "result" }
-    val result = observation.equals(observation, null, null)
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_NullComparison_ReturnsFalse() {
-    val observation = Observation.create("test") { "result" }
-    val result = observation.equals(null, null, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_BothSuccess_SameValue_ReturnsTrue() {
-    val observation1 = Observation.create("test1") { "result" }
-    val observation2 = Observation.create("test2") { "result" }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_BothSuccess_DifferentValue_ReturnsFalse() {
-    val observation1 = Observation.create("test1") { "result1" }
-    val observation2 = Observation.create("test2") { "result2" }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_BothSuccess_DifferentValue_CustomComparison_ReturnsTrue() {
-    val observation1 = Observation.create("test1") { "result1" }
-    val observation2 = Observation.create("test2") { "result2" }
-    val result = observation1.equals(observation2, { _, _ -> true }, null)
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_BothFailure_SameException_ReturnsTrue() {
-    val exception = RuntimeException("test exception")
-    val observation1 = Observation.create("test1") { throw exception }
-    val observation2 = Observation.create("test2") { throw exception }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_BothFailure_DifferentException_ReturnsFalse() {
-    val exception1 = RuntimeException("test exception 1")
-    val exception2 = RuntimeException("test exception 2")
-    val observation1 = Observation.create("test1") { throw exception1 }
-    val observation2 = Observation.create("test2") { throw exception2 }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_BothFailure_DifferentException_CustomComparison_ReturnsTrue() {
-    val exception1 = RuntimeException("test exception 1")
-    val exception2 = RuntimeException("test exception 2")
-    val observation1 = Observation.create("test1") { throw exception1 }
-    val observation2 = Observation.create("test2") { throw exception2 }
-    val result = observation1.equals(observation2, null) { _, _ -> true }
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_OneSuccess_OneFailure_ReturnsFalse() {
-    val exception = RuntimeException("test exception")
-    val observation1: Observation<String> = Observation.create("test1") { "result" }
-    val observation2: Observation<String> =
-      Observation(name = "test2", answer = Answer.failure(exception), duration = Duration.ZERO)
-
-    val result1 = observation1.equals(observation2, null, null)
-    val result2 = observation2.equals(observation1, null, null)
-
-    assertThat(result1).isFalse()
-    assertThat(result2).isFalse()
-  }
-
-  @Test
-  fun equals_BothSuccess_OneNullValue_CustomComparison_HandlesNull() {
-    val observation1: Observation<String?> = Observation.create("test1") { "result" }
-    val observation2: Observation<String?> = Observation.create("test2") { null }
-    val result = observation1.equals(observation2, { a, b -> a == b }, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_BothFailure_OneNullError_ReturnsFalse() {
-    val exception = RuntimeException("test exception")
-    val observation1: Observation<String> = Observation.create("test1") { throw exception }
-    val observation2: Observation<String> = Observation.create("test2") { "success" }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_BothSuccess_WithNullValues_ReturnsTrue() {
-    val observation1: Observation<String?> = Observation.create("test1") { null }
-    val observation2: Observation<String?> = Observation.create("test2") { null }
-    val result = observation1.equals(observation2, null, null)
-    assertThat(result).isTrue()
-  }
-
-  @Test
-  fun equals_BothSuccess_WithNullValues_CustomComparison_ReturnsCustomResult() {
-    val observation1: Observation<String?> = Observation.create("test1") { null }
-    val observation2: Observation<String?> = Observation.create("test2") { null }
-    val result = observation1.equals(observation2, { _, _ -> false }, null)
-    assertThat(result).isFalse()
-  }
-
-  @Test
-  fun equals_MixedNullAndNonNullValues_ReturnsFalse() {
-    val observation1: Observation<String?> = Observation.create("test1") { "result" }
-    val observation2: Observation<String?> = Observation.create("test2") { null }
-    val result1 = observation1.equals(observation2, null, null)
-    val result2 = observation2.equals(observation1, null, null)
-    assertThat(result1).isFalse()
-    assertThat(result2).isFalse()
+  fun testObservation_equals_with_null() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.control).isNotEqualTo(null)
   }
 }

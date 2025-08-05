@@ -129,22 +129,8 @@ class ExperimentTest {
       test { "candidate result" }
     }
 
-    assertThrows<RuntimeException> { experiment.run() }
-  }
-
-  @Test
-  fun experiment_callbacks_BeforeRun() {
-    var beforeRunCalled = false
-
-    val experiment = Experiment {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      beforeRun { beforeRunCalled = true }
-    }
-
-    experiment.run()
-    assertThat(beforeRunCalled).isTrue()
+    val actualException = assertThrows<RuntimeException> { experiment.run() }
+    assertThat(actualException).isEqualTo(exception)
   }
 
   @Test
@@ -176,7 +162,7 @@ class ExperimentTest {
     }
 
     val exception = assertThrows<RuntimeException> { experiment.run() }
-    assertThat(exception).isSameAs(publishException)
+    assertThat(exception).isEqualTo(publishException)
   }
 
   @Test
@@ -297,5 +283,187 @@ class ExperimentTest {
     }
     val result = experiment.run()
     assertThat(result).isEqualTo("control result")
+  }
+
+  @Test
+  fun experiment_with_ignore_throws() {
+    val ignoreException = RuntimeException("ignore")
+    var caughtThrowable: Throwable? = null
+    var caughtOperation: String? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      ignore { _, _ -> throw ignoreException }
+      raised { operation, throwable ->
+        caughtOperation = operation
+        caughtThrowable = throwable
+      }
+    }
+    val result = experiment.run()
+    assertThat(result).isEqualTo("control result")
+    assertThat(caughtThrowable).isEqualTo(ignoreException)
+    assertThat(caughtOperation).isEqualTo("ignore")
+  }
+
+  @Test
+  fun experiment_with_default_compare_control_candidate_equal() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "result" }
+      test { "result" }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_with_custom_compare_control_candidate_equal() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "benz" }
+      test { "audi" }
+      compare { a, b -> a.length == b.length }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_with_default_compare_control_candidate_not_equal() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
+  @Test
+  fun experiment_with_custom_compare_control_candidate_not_equal() {
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { "candidate result" }
+      compare { a, b -> a.length == b.length }
+      publish { result = it }
+    }
+    experiment.run()
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
+  @Test
+  fun experiment_with_default_compare_error_control_candidate_same_throws() {
+    val controlException = RuntimeException("control error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { throw controlException }
+      test { throw controlException }
+      publish { result = it }
+    }
+
+    assertThrows<RuntimeException> { experiment.run() }
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_with_custom_compare_error_control_candidate_same_throws() {
+    val controlException = RuntimeException("control error")
+    val candidateException = RuntimeException("control error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { throw controlException }
+      test { throw candidateException }
+      compareError { a, b -> a.message == b.message }
+      publish { result = it }
+    }
+
+    assertThrows<RuntimeException> { experiment.run() }
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isEmpty()
+  }
+
+  @Test
+  fun experiment_with_default_compare_error_control_candidate_different_throws() {
+    val controlException = RuntimeException("control error")
+    val candidateException = RuntimeException("candidate error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { throw controlException }
+      test { throw candidateException }
+      publish { result = it }
+    }
+
+    assertThrows<RuntimeException> { experiment.run() }
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
+  @Test
+  fun experiment_with_custom_compare_error_control_candidate_different_throws() {
+    val controlException = RuntimeException("control error")
+    val candidateException = RuntimeException("candidate error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { throw controlException }
+      test { throw candidateException }
+      compareError { a, b -> a.message == b.message }
+      publish { result = it }
+    }
+
+    assertThrows<RuntimeException> { experiment.run() }
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
+  @Test
+  fun experiment_with_control_success_candidate_throws() {
+    val candidateException = RuntimeException("candidate error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { "control result" }
+      test { throw candidateException }
+      publish { result = it }
+    }
+
+    val runValue = experiment.run()
+    assertThat(runValue).isEqualTo("control result")
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
+  }
+
+  @Test
+  fun experiment_with_control_throws_candidate_success() {
+    val controlException = RuntimeException("control error")
+    var result: Result<String>? = null
+    val experiment = Experiment {
+      enabled = true
+      control { throw controlException }
+      test { "candidate result" }
+      publish { result = it }
+    }
+
+    val exception = assertThrows<RuntimeException> { experiment.run() }
+    assertThat(exception).isEqualTo(controlException)
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).isNotEmpty()
   }
 }

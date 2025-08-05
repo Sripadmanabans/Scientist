@@ -16,39 +16,9 @@
 
 package com.adjectivemonk2.scientist
 
-public class Result<T>
-private constructor(
+public class Result<T>(
   public val control: Observation<T>,
   public val candidates: List<Observation<T>>,
   public val mismatched: Set<Observation<T>>,
   public val ignored: Set<Observation<T>>,
-) {
-
-  internal companion object {
-    fun <T> create(
-      control: Observation<T>,
-      candidates: List<Observation<T>>,
-      raised: (operation: String, throwable: Throwable) -> Unit,
-      compare: ((T, T) -> Boolean)?,
-      compareError: ((Throwable, Throwable) -> Boolean)?,
-      ignores: List<(T?, T?) -> Boolean>?,
-    ): Result<T> {
-      val mismatched =
-        candidates.filterNotTo(mutableSetOf()) { control.equals(it, compare, compareError) }
-
-      val ignored =
-        mismatched.filterTo(mutableSetOf()) { candidate ->
-          ignores?.any { ignore ->
-            try {
-              ignore(control.answer.getOrThrow(), candidate.answer.getOrThrow())
-            } catch (throwable: Throwable) {
-              raised("ignore", throwable)
-              false
-            }
-          } ?: false
-        }
-
-      return Result(control, candidates, mismatched - ignored, ignored)
-    }
-  }
-}
+)

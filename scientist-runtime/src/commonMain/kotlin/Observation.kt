@@ -21,36 +21,39 @@ import kotlin.time.measureTimedValue
 
 public class Observation<T>(
   public val name: String,
+  public val experiment: Experiment<T>,
   public val answer: Answer<T>,
   public val duration: Duration,
 ) {
 
-  internal fun equals(
-    other: Observation<T>?,
-    compare: ((T, T) -> Boolean)?,
-    compareError: ((Throwable, Throwable) -> Boolean)?,
-  ): Boolean {
+  override fun equals(other: Any?): Boolean {
     if (this === other) return true
-    if (other == null) return false
+    if (javaClass != other?.javaClass) return false
+
+    other as Observation<T>
 
     val otherAnswer = other.answer
     return if (answer.isSuccess && otherAnswer.isSuccess) {
       val thisValue = answer.getOrThrow()
       val otherValue = otherAnswer.getOrThrow()
-      compare?.invoke(thisValue, otherValue) ?: (thisValue == otherValue)
+      experiment.compare?.invoke(thisValue, otherValue) ?: (thisValue == otherValue)
     } else if (answer.isFailure && otherAnswer.isFailure) {
       val thisError = answer.exceptionOrNull()!!
       val otherError = otherAnswer.exceptionOrNull()!!
-      compareError?.invoke(thisError, otherError) ?: (thisError == otherError)
+      experiment.compareError?.invoke(thisError, otherError) ?: (thisError == otherError)
     } else {
       false
     }
   }
 
-  internal companion object {
-    fun <T> create(name: String, block: () -> T): Observation<T> {
+  override fun hashCode(): Int {
+    return answer.hashCode()
+  }
+
+  public companion object {
+    public fun <T> create(name: String, experiment: Experiment<T>, block: () -> T): Observation<T> {
       val (answer, duration) = measureTimedValue { runCatching { block() } }
-      return Observation(name = name, answer = answer, duration = duration)
+      return Observation(name = name, experiment = experiment, answer = answer, duration = duration)
     }
   }
 }
