@@ -20,6 +20,7 @@ public class Experiment<T>
 private constructor(
   private val enabled: Boolean,
   private val behaviors: Map<String, () -> T>,
+  private val runIf: (() -> Boolean)?,
   private val beforeRun: (() -> Unit)?,
   private val afterRun: ((result: Result<T>) -> Unit)?,
   private val publish: (result: Result<T>) -> Unit,
@@ -31,7 +32,7 @@ private constructor(
 
   public fun run(name: String = "control"): T {
     val control = behaviors.getValue(name)
-    if (!enabled) {
+    if (!shouldRunExperiment()) {
       return control()
     }
     beforeRun?.invoke()
@@ -43,6 +44,19 @@ private constructor(
       raised("publish", throwable)
     }
     return result.control.answer.getOrThrow()
+  }
+
+  private fun shouldRunExperiment(): Boolean {
+    return behaviors.size > 1 && enabled && runIfAllowed()
+  }
+
+  private fun runIfAllowed(): Boolean {
+    return try {
+      runIf?.invoke() ?: true
+    } catch (throwable: Throwable) {
+      raised("runIf", throwable)
+      false
+    }
   }
 
   private fun generateResults(name: String, behaviors: Map<String, () -> T>): Result<T> {
@@ -73,6 +87,7 @@ private constructor(
 
   public class Builder<T>() {
     private val behaviors = mutableMapOf<String, () -> T>()
+    private var runIf: (() -> Boolean)? = null
     private var beforeRun: (() -> Unit)? = null
     private var afterRun: ((result: Result<T>) -> Unit)? = null
     private var publish: ((result: Result<T>) -> Unit) = { _ -> }
@@ -98,6 +113,10 @@ private constructor(
         throw BehaviorNotUniqueException(name)
       }
       behaviors[name] = block
+    }
+
+    public fun runIf(predicate: () -> Boolean) {
+      runIf = predicate
     }
 
     public fun beforeRun(block: () -> Unit) {
@@ -135,6 +154,7 @@ private constructor(
       return Experiment(
         enabled = enabled,
         behaviors = behaviors.toMap(),
+        runIf = runIf,
         beforeRun = beforeRun,
         afterRun = afterRun,
         publish = publish,
