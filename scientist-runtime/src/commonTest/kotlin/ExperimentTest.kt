@@ -17,6 +17,7 @@
 import com.adjectivemonk2.scientist.BehaviorNotUniqueException
 import com.adjectivemonk2.scientist.Experiment
 import com.adjectivemonk2.scientist.Result
+import com.adjectivemonk2.scientist.getOrThrow
 import com.varabyte.truthish.assertThat
 import com.varabyte.truthish.assertThrows
 import kotlin.test.Test
@@ -274,15 +275,22 @@ class ExperimentTest {
 
   @Test
   fun experiment_with_ignores() {
+    var result: Result<String>? = null
     val experiment = Experiment {
       enabled = true
       control { "control result" }
-      test { "candidate result" }
-      ignore { _, candidate -> candidate?.contains("result") ?: false }
-      ignore { _, candidate -> candidate?.contains("candidate") ?: false }
+      test("test1") { "candidate" }
+      test("test2") { "result" }
+      test("test3") { "mismatched" }
+      ignore { _, candidate -> candidate.answer.getOrThrow().contains("result") }
+      ignore { _, candidate -> candidate.answer.getOrThrow().contains("candidate") }
+      publish { result = it }
     }
-    val result = experiment.run()
-    assertThat(result).isEqualTo("control result")
+    val experimentValue = experiment.run()
+    assertThat(experimentValue).isEqualTo("control result")
+    assertThat(result).isNotNull()
+    assertThat(result!!.mismatched).hasSize(3)
+    assertThat(result.ignored).hasSize(2)
   }
 
   @Test

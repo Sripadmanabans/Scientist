@@ -26,7 +26,7 @@ private constructor(
   internal val raised: (operation: String, throwable: Throwable) -> Unit,
   internal val compare: ((T, T) -> Boolean)?,
   internal val compareError: ((Throwable, Throwable) -> Boolean)?,
-  internal val ignores: List<(T?, T?) -> Boolean>?,
+  internal val ignores: List<(Observation<T>, Observation<T>) -> Boolean>?,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -54,15 +54,19 @@ private constructor(
     val candidates = observations - control
     val mismatched = candidates.filterNotTo(mutableSetOf()) { control == it }
     val ignored =
-      mismatched.filterTo(mutableSetOf()) { candidate ->
-        ignores?.any { ignore ->
-          try {
-            ignore(control.answer.getOrThrow(), candidate.answer.getOrThrow())
-          } catch (throwable: Throwable) {
-            raised("ignore", throwable)
-            false
+      if (ignores != null) {
+        mismatched.filterTo(mutableSetOf()) { candidate ->
+          ignores.any { ignore ->
+            try {
+              ignore(control, candidate)
+            } catch (throwable: Throwable) {
+              raised("ignore", throwable)
+              false
+            }
           }
-        } ?: false
+        }
+      } else {
+        emptySet()
       }
     return Result(control, observations - control, mismatched, ignored)
   }
@@ -79,7 +83,7 @@ private constructor(
     private var compare: ((T, T) -> Boolean)? = null
     private var compareError: ((Throwable, Throwable) -> Boolean)? = null
 
-    private var ignores: MutableList<(T?, T?) -> Boolean>? = null
+    private var ignores: MutableList<(Observation<T>, Observation<T>) -> Boolean>? = null
 
     public var enabled: Boolean = false
 
@@ -118,7 +122,7 @@ private constructor(
       compareError = block
     }
 
-    public fun ignore(block: (T?, T?) -> Boolean) {
+    public fun ignore(block: (Observation<T>, Observation<T>) -> Boolean) {
       if (ignores == null) {
         ignores = mutableListOf()
       }
