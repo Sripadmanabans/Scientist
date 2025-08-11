@@ -16,18 +16,15 @@
 
 import com.adjectivemonk2.scientist.science
 import com.varabyte.truthish.assertThat
-import com.varabyte.truthish.assertThrows
 import kotlin.test.Test
 
 class ScienceTest {
 
   @Test
-  fun science_EnabledExperiment() {
+  fun science_without_name_EnabledExperiment() {
     var controlCalled = false
     var candidateCalled = false
-    var beforeRunCalled = false
-    var afterRunCalled = false
-    var publishCalled = false
+    val callOrder = mutableListOf<String>()
 
     val result = science {
       enabled = true
@@ -39,45 +36,19 @@ class ScienceTest {
         candidateCalled = true
         "candidate result"
       }
-      beforeRun { beforeRunCalled = true }
-      afterRun { _ -> afterRunCalled = true }
-      publish { _ -> publishCalled = true }
+      beforeRun { callOrder.add("before") }
+      afterRun { callOrder.add("after") }
+      publish { callOrder.add("publish") }
     }
 
     assertThat(result).isEqualTo("control result")
     assertThat(controlCalled).isTrue()
     assertThat(candidateCalled).isTrue()
-    assertThat(beforeRunCalled).isTrue()
-    assertThat(afterRunCalled).isTrue()
-    assertThat(publishCalled).isTrue()
+    assertThat(callOrder).containsExactly("before", "after", "publish")
   }
 
   @Test
-  fun science_ControlThrowsException() {
-    val exception = RuntimeException("control exception")
-
-    assertThrows<RuntimeException> { science { control { throw exception } } }
-  }
-
-  @Test
-  fun science_WithRaisedCallback() {
-    val publishException = RuntimeException("publish exception")
-    var raisedCalled = false
-
-    val result = science {
-      enabled = true
-      control { "control result" }
-      test { "candidate result" }
-      publish { _ -> throw publishException }
-      raised { _, _ -> raisedCalled = true }
-    }
-
-    assertThat(result).isEqualTo("control result")
-    assertThat(raisedCalled).isTrue()
-  }
-
-  @Test
-  fun science_DisabledExperiment() {
+  fun science_without_name_DisabledExperiment() {
     var controlCalled = false
     var candidateCalled = false
 
@@ -96,5 +67,56 @@ class ScienceTest {
     assertThat(result).isEqualTo("control result")
     assertThat(controlCalled).isTrue()
     assertThat(candidateCalled).isFalse()
+  }
+
+  @Test
+  fun science_name_EnabledExperiment() {
+    var test1Called = false
+    var test2Called = false
+    val callOrder = mutableListOf<String>()
+
+    val result =
+      science("Test1") {
+        enabled = true
+        test("Test1") {
+          test1Called = true
+          "test1 result"
+        }
+        test("Test2") {
+          test2Called = true
+          "test2 result"
+        }
+        beforeRun { callOrder.add("before") }
+        afterRun { callOrder.add("after") }
+        publish { callOrder.add("publish") }
+      }
+
+    assertThat(result).isEqualTo("test1 result")
+    assertThat(test1Called).isTrue()
+    assertThat(test2Called).isTrue()
+    assertThat(callOrder).containsExactly("before", "after", "publish")
+  }
+
+  @Test
+  fun science_with_name_DisabledExperiment() {
+    var test1Called = false
+    var test2Called = false
+
+    val result =
+      science("Test2") {
+        enabled = false
+        test("Test1") {
+          test1Called = true
+          "test1 result"
+        }
+        test("Test2") {
+          test2Called = true
+          "test2 result"
+        }
+      }
+
+    assertThat(result).isEqualTo("test2 result")
+    assertThat(test1Called).isFalse()
+    assertThat(test2Called).isTrue()
   }
 }

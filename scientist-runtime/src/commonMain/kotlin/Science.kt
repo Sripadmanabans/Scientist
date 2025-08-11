@@ -19,3 +19,7 @@ package com.adjectivemonk2.scientist
 public inline fun <T> science(construct: Experiment.Builder<T>.() -> Unit): T {
   return Experiment.Builder<T>().apply(construct).build().run()
 }
+
+public inline fun <T> science(name: String, construct: Experiment.Builder<T>.() -> Unit): T {
+  return Experiment.Builder<T>().apply(construct).build().run(name)
+}
