@@ -24,9 +24,9 @@ private constructor(
   private val afterRun: ((result: Result<T>) -> Unit)?,
   private val publish: (result: Result<T>) -> Unit,
   internal val raised: (operation: String, throwable: Throwable) -> Unit,
-  internal val compare: ((T, T) -> Boolean)?,
-  internal val compareError: ((Throwable, Throwable) -> Boolean)?,
-  internal val ignores: List<(Observation<T>, Observation<T>) -> Boolean>?,
+  internal val compare: ((control: T, candidate: T) -> Boolean)?,
+  internal val compareError: ((control: Throwable, candidate: Throwable) -> Boolean)?,
+  internal val ignores: List<(control: Observation<T>, candidate: Observation<T>) -> Boolean>?,
 ) {
 
   public fun run(name: String = "control"): T {
@@ -52,7 +52,7 @@ private constructor(
       }
     val control = observations.first { it.name == name }
     val candidates = observations - control
-    val mismatched = candidates.filterNotTo(mutableSetOf()) { control == it }
+    val mismatched = candidates.filterNotTo(mutableSetOf()) { candidate -> control == candidate }
     val ignored =
       if (ignores != null) {
         mismatched.filterTo(mutableSetOf()) { candidate ->
@@ -80,10 +80,12 @@ private constructor(
       throw throwable
     }
 
-    private var compare: ((T, T) -> Boolean)? = null
-    private var compareError: ((Throwable, Throwable) -> Boolean)? = null
+    private var compare: ((control: T, candidate: T) -> Boolean)? = null
+    private var compareError: ((control: Throwable, candidate: Throwable) -> Boolean)? = null
 
-    private var ignores: MutableList<(Observation<T>, Observation<T>) -> Boolean>? = null
+    private var ignores:
+      MutableList<(control: Observation<T>, candidate: Observation<T>) -> Boolean>? =
+      null
 
     public var enabled: Boolean = false
 
@@ -114,15 +116,15 @@ private constructor(
       raised = block
     }
 
-    public fun compare(block: (T, T) -> Boolean) {
+    public fun compare(block: (control: T, candidate: T) -> Boolean) {
       compare = block
     }
 
-    public fun compareError(block: (Throwable, Throwable) -> Boolean) {
+    public fun compareError(block: (control: Throwable, candidate: Throwable) -> Boolean) {
       compareError = block
     }
 
-    public fun ignore(block: (Observation<T>, Observation<T>) -> Boolean) {
+    public fun ignore(block: (control: Observation<T>, candidate: Observation<T>) -> Boolean) {
       if (ignores == null) {
         ignores = mutableListOf()
       }

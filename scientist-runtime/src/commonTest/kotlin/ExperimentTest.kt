@@ -216,7 +216,7 @@ class ExperimentTest {
       enabled = true
       control { "size" }
       test { "test" }
-      compare { a, b -> a.length == b.length }
+      compare { control, candidate -> control.length == candidate.length }
       publish { result = it }
     }
 
@@ -259,7 +259,7 @@ class ExperimentTest {
       enabled = true
       control { throw controlException }
       test { throw candidateException }
-      compareError { a, b -> a.javaClass == b.javaClass } // Only compare exception types
+      compareError { control, candidate -> control.javaClass == candidate.javaClass }
       publish { result = it }
     }
 
@@ -335,7 +335,7 @@ class ExperimentTest {
       enabled = true
       control { "benz" }
       test { "audi" }
-      compare { a, b -> a.length == b.length }
+      compare { control, candidate -> control.length == candidate.length }
       publish { result = it }
     }
     experiment.run()
@@ -364,7 +364,7 @@ class ExperimentTest {
       enabled = true
       control { "control result" }
       test { "candidate result" }
-      compare { a, b -> a.length == b.length }
+      compare { control, candidate -> control.length == candidate.length }
       publish { result = it }
     }
     experiment.run()
@@ -397,7 +397,7 @@ class ExperimentTest {
       enabled = true
       control { throw controlException }
       test { throw candidateException }
-      compareError { a, b -> a.message == b.message }
+      compareError { control, candidate -> control.message == candidate.message }
       publish { result = it }
     }
 
@@ -432,7 +432,7 @@ class ExperimentTest {
       enabled = true
       control { throw controlException }
       test { throw candidateException }
-      compareError { a, b -> a.message == b.message }
+      compareError { control, candidate -> control.message == candidate.message }
       publish { result = it }
     }
 
