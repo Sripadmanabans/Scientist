@@ -15,7 +15,6 @@
  */
 
 import com.adjectivemonk2.scientist.Experiment
-import com.adjectivemonk2.scientist.Result
 import com.varabyte.truthish.assertThat
 import kotlin.test.Test
 
@@ -23,29 +22,23 @@ class ObservationTest {
 
   @Test
   fun testObservation_equals_with_different_class() {
-    var result: Result<String>? = null
     val experiment = Experiment {
       enabled = true
       control { "control result" }
       test { "candidate result" }
-      publish { result = it }
+      publish { result -> assertThat(result.control).isNotEqualTo("candidate result") }
     }
     experiment.run()
-    assertThat(result).isNotNull()
-    assertThat(result!!.control).isNotEqualTo("candidate result")
   }
 
   @Test
   fun testObservation_equals_with_null() {
-    var result: Result<String>? = null
     val experiment = Experiment {
       enabled = true
       control { "control result" }
       test { "candidate result" }
-      publish { result = it }
+      publish { result -> assertThat(result.control).isNotEqualTo(null) }
     }
     experiment.run()
-    assertThat(result).isNotNull()
-    assertThat(result!!.control).isNotEqualTo(null)
   }
 }

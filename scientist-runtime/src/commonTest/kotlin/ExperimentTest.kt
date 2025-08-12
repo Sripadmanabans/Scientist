@@ -173,7 +173,7 @@ class ExperimentTest {
       enabled = true
       control { throw controlException }
       test { throw candidateException }
-      publish { result -> assertThat(result.mismatched.size).isEqualTo(1) }
+      publish { result -> assertThat(result.mismatched).hasSize(1) }
     }
 
     try {
@@ -213,7 +213,7 @@ class ExperimentTest {
       ignore { _, candidate -> candidate.answer.getOrThrow().contains("result") }
       ignore { _, candidate -> candidate.answer.getOrThrow().contains("candidate") }
       publish { result ->
-        assertThat(result.mismatched).hasSize(3)
+        assertThat(result.mismatched).hasSize(1)
         assertThat(result.ignored).hasSize(2)
       }
     }

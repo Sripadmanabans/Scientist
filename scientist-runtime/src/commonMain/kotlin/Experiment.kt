@@ -82,7 +82,7 @@ private constructor(
       } else {
         emptySet()
       }
-    return Result(control, observations - control, mismatched, ignored)
+    return Result(control, observations - control, mismatched - ignored, ignored)
   }
 
   public class Builder<T>() {
